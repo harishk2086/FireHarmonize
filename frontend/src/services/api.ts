@@ -217,9 +217,15 @@ getViirs: async (): Promise<RawFireObservation[]> => {
 },
 
 
-  getHarmonized: async (): Promise<HarmonizedFireEvent[]> => {
+  getHarmonized: async (
+    params?: { spatial_radius_km: number; temporal_window_minutes: number }
+  ): Promise<HarmonizedFireEvent[]> => {
+    const query = params
+      ? `?radius_km=${params.spatial_radius_km}&window_min=${params.temporal_window_minutes}`
+      : '';
+
     const data = await fetchJson<BackendHarmonizedEvent[]>(
-      '/fires/harmonized'
+      `/fires/harmonized${query}`
     );
 
     return data.map(convertHarmonizedEvent);

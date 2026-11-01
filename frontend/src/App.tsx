@@ -80,16 +80,16 @@ export default function App() {
 
   // Configurable Harmonization Parameters
   const [spatialRadius, setSpatialRadius] =
-    useState<number>(1.5);
+    useState<number>(1.0);
 
   const [temporalWindow, setTemporalWindow] =
-    useState<number>(45);
+    useState<number>(30);
 
   const [spatialWeight] =
-    useState<number>(0.4);
+    useState<number>(0.5);
 
   const [temporalWeight] =
-    useState<number>(0.4);
+    useState<number>(0.3);
 
   const [confidenceWeight] =
     useState<number>(0.2);
@@ -184,7 +184,7 @@ const [selectedHotspot, setSelectedHotspot] =
       ] = await Promise.all([
         api.getModis(),
         api.getViirs(),
-        api.getHarmonized()
+        api.getHarmonized({ spatial_radius_km: spatialRadius, temporal_window_minutes: temporalWindow })
       ]);
 
       setModisFires(mRefreshed);
@@ -997,14 +997,14 @@ const [selectedHotspot, setSelectedHotspot] =
                         </span>
                       </div>
 
-                      {selectedHotspot.match_score && (
+                      {selectedHotspot.match_score > 0 && (
                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
                           <span className="text-[10px] block text-amber-400/80">
                             MATCH SCORE
                           </span>
 
                           <span className="text-base font-bold">
-                            {selectedHotspot.match_score}%
+                            {Number(selectedHotspot.match_score).toFixed(1)}%
                           </span>
                         </div>
                       )}
@@ -1248,7 +1248,7 @@ const [selectedHotspot, setSelectedHotspot] =
                               </td>
 
                               <td className="p-2.5 text-right font-bold text-emerald-400">
-                                {evt.match_score}%
+                                {evt.match_score > 0 ? `${evt.match_score.toFixed(1)}%` : '\u2014'}
                               </td>
                             </tr>
                           ))}
@@ -1510,7 +1510,7 @@ const [selectedHotspot, setSelectedHotspot] =
                 </p>
 
                 <div className="p-4 rounded-xl bg-slate-950 font-mono text-xs text-amber-300 border border-slate-800">
-                  Match Score = (0.4 × Spatial Score) + (0.4 × Temporal Score) + (0.2 × Confidence Score)
+                  Match Score = (0.5 × Spatial Score) + (0.3 × Temporal Score) + (0.2 × Confidence Score)
                 </div>
               </section>
 
