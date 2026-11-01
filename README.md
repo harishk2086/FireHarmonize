@@ -11,6 +11,21 @@ The platform aims to improve the interpretation of satellite-based fire observat
 
 ---
 
+## 🌐 Live Demo
+
+| | Link |
+|---|---|
+| **Dashboard** | **https://fire-harmonize.vercel.app** |
+| API (FastAPI) | https://fireharmonize.onrender.com |
+| Interactive API docs | https://fireharmonize.onrender.com/docs |
+| API health check | https://fireharmonize.onrender.com/api/health |
+
+- **Data:** the live demo runs in **demo mode** with a clearly labelled **synthetic** dataset (186 observations over South India, 10–14°N, 77–80.5°E, Feb–Apr 2025). It is not real NASA satellite data.
+- **First load may take up to a minute.** The backend is hosted on Render's free plan, which sleeps after 15 minutes without visitors. The dashboard shows a *"Waking up the backend server…"* banner and fills in automatically once the server is ready.
+- **Hosting:** frontend on Vercel, backend on Render, basemaps from the Esri ArcGIS Location Platform (API key restricted to the dashboard's address).
+
+---
+
 ## 🚀 Key Features
 
 - **Cross-Sensor Harmonization:** Identify potential MODIS–VIIRS observation matches using spatial and temporal proximity.
