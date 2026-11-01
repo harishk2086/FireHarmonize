@@ -26,6 +26,30 @@ The platform aims to improve the interpretation of satellite-based fire observat
 
 ---
 
+## 📸 Screenshots
+
+**Overview:** sensor counts, matched pairs, observation timeline and harmonization summary.
+
+![FireHarmonize overview dashboard](docs/screenshots/overview.png)
+
+**Fire Map:** MODIS, VIIRS and harmonized events on Esri satellite imagery, with the Observation Inspector.
+
+![Fire map with a harmonized event selected](docs/screenshots/fire-map.png)
+
+**Harmonization:** adjustable spatial radius and time window, with the resulting harmonized events and match scores.
+
+![Harmonization engine controls and output](docs/screenshots/harmonization.png)
+
+**Data Explorer:** every observation and event with its harmonization status.
+
+![Data Explorer with colour-coded statuses](docs/screenshots/data-explorer.png)
+
+**Mobile:** the full dashboard works on phones, with a swipeable tab bar.
+
+<img src="docs/screenshots/mobile.png" alt="FireHarmonize on a phone" width="300">
+
+---
+
 ## 🚀 Key Features
 
 - **Cross-Sensor Harmonization:** Identify potential MODIS–VIIRS observation matches using spatial and temporal proximity.
