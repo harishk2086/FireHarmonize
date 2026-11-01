@@ -393,15 +393,15 @@ eventHandlers={{
 
         
 
-      <div className="pointer-events-none absolute bottom-7 left-3 z-[1000] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700 bg-slate-950/95 p-3 text-xs text-slate-200 shadow-lg">
-        <div className="mb-2 font-bold tracking-wide">MAP LEGEND</div>
+      <div className="pointer-events-none absolute bottom-14 left-3 z-[1000] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700 bg-slate-950/95 p-2 sm:p-3 text-[10px] sm:text-xs text-slate-200 shadow-lg">
+        <div className="mb-1 sm:mb-2 font-bold tracking-wide">MAP LEGEND</div>
 
-        <div className="mb-2 flex items-start gap-2">
+        <div className="mb-1 sm:mb-2 flex items-start gap-2">
           <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500" />
           <span>MODIS Observations (1 km)</span>
         </div>
 
-        <div className="mb-2 flex items-start gap-2">
+        <div className="mb-1 sm:mb-2 flex items-start gap-2">
           <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
           <span>VIIRS Observations (375 m)</span>
         </div>

@@ -1,5 +1,7 @@
-import FireMap from './components/FireMap';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+
+// The map (Leaflet) is only downloaded when the Fire Map tab is first opened.
+const FireMap = lazy(() => import('./components/FireMap'));
 import {
   Flame,
   Satellite,
@@ -35,6 +37,40 @@ import {
 } from 'recharts';
 
 import { api, API_BASE, waitForBackend } from './services/api';
+
+// Dashboard tabs (shared by the wide-screen bar and the mobile strip).
+const NAV_TABS = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    icon: BarChart3
+  },
+  {
+    id: 'map',
+    label: 'Fire Map',
+    icon: MapPin
+  },
+  {
+    id: 'harmonization',
+    label: 'Harmonization',
+    icon: Sliders
+  },
+  {
+    id: 'trends',
+    label: 'Historical Trends',
+    icon: Layers
+  },
+  {
+    id: 'data',
+    label: 'Data Explorer',
+    icon: Database
+  },
+  {
+    id: 'methodology',
+    label: 'Methodology',
+    icon: BookOpen
+  }
+];
 
 // Colour coding for harmonization status labels (Data Explorer).
 function statusStyle(status?: string): string {
@@ -395,64 +431,27 @@ const [selectedHotspot, setSelectedHotspot] =
                     FIREHARMONIZE
                   </span>
 
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
+                  <span className="hidden sm:inline text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 whitespace-nowrap">
                     NASA Space Apps '26
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-400 font-mono">
+                <p className="hidden sm:block text-xs text-slate-400 font-mono whitespace-nowrap">
                   MODIS + VIIRS Active Fire Cross-Sensor Intelligence
                 </p>
               </div>
             </div>
 
-            {/* Navigation Tabs */}
-            <nav className="hidden md:flex items-center space-x-1">
-              {[
-                {
-                  id: 'overview',
-                  label: 'Overview',
-                  icon: BarChart3
-                },
-                {
-                  id: 'map',
-                  label: 'Fire Map',
-                  icon: MapPin
-                },
-                {
-                  id: 'harmonization',
-                  label: 'Harmonization',
-                  icon: Sliders
-                },
-                {
-                  id: 'trends',
-                  label: 'Historical Trends',
-                  icon: Layers
-                },
-                {
-                  id: 'data',
-                  label: 'Data Explorer',
-                  icon: Database
-                },
-                {
-                  id: 'methodology',
-                  label: 'Methodology',
-                  icon: BookOpen
-                }
-              ].map(tab => {
+            {/* Navigation Tabs (wide screens) */}
+            <nav className="hidden xl:flex items-center space-x-1">
+              {NAV_TABS.map(tab => {
                 const Icon = tab.icon;
-                const isActive =
-                  activeTab === tab.id;
-
+                const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() =>
-                      setActiveTab(
-                        tab.id as TabType
-                      )
-                    }
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                    onClick={() => setActiveTab(tab.id as TabType)}
+                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
                       isActive
                         ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -483,6 +482,28 @@ const [selectedHotspot, setSelectedHotspot] =
               </button>
             </div>
           </div>
+
+          {/* Navigation Tabs (phones, tablets, narrow windows): scrollable strip */}
+          <nav className="xl:hidden -mx-4 px-4 sm:-mx-6 sm:px-6 pb-3 flex items-center gap-1.5 overflow-x-auto">
+            {NAV_TABS.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className={`flex-shrink-0 flex items-center space-x-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap border transition-all ${
+                    isActive
+                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      : 'text-slate-400 border-slate-800 bg-slate-900/60'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </header>
 
@@ -867,7 +888,7 @@ const [selectedHotspot, setSelectedHotspot] =
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
               <div className="lg:col-span-2 p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <h3 className="text-sm font-bold text-white">
                     Cross-Sensor Fire Observation Map
                   </h3>
@@ -931,6 +952,13 @@ const [selectedHotspot, setSelectedHotspot] =
                   </div>
 
                   
+<Suspense
+  fallback={
+    <div className="flex h-[420px] items-center justify-center rounded-xl border border-slate-800 text-xs font-mono text-slate-400 sm:h-[500px] lg:h-[600px]">
+      Loading map...
+    </div>
+  }
+>
 <FireMap
   modisFires={modisFires}
   viirsFires={viirsFires}
@@ -942,10 +970,11 @@ const [selectedHotspot, setSelectedHotspot] =
   setSelectedHotspot({ ...item, sensorType })
 }
 />
+</Suspense>
 
 
                   {/* Map Labels */}
-                  <div className="pointer-events-none absolute top-3 left-14 px-3 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur">
+                  <div className="pointer-events-none absolute top-3 left-14 max-w-[calc(100%-8.5rem)] px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[9px] sm:text-[10px] font-mono text-slate-400 backdrop-blur">
                     <div className="text-amber-400 font-bold mb-1">
                       DEMO DATA (SYNTHETIC)
                     </div>
@@ -1212,7 +1241,7 @@ const [selectedHotspot, setSelectedHotspot] =
               {/* Matched Results Table */}
               <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 className="text-base font-bold text-white flex items-center space-x-2">
                       <CheckCircle2 className="w-5 h-5 text-emerald-400" />
 
@@ -1369,8 +1398,8 @@ const [selectedHotspot, setSelectedHotspot] =
         {activeTab === 'data' && (
           <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto">
                   <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
 
                   <input
@@ -1382,7 +1411,7 @@ const [selectedHotspot, setSelectedHotspot] =
                         e.target.value
                       )
                     }
-                    className="pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono w-64"
+                    className="pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono w-full sm:w-64"
                   />
                 </div>
 

@@ -52,3 +52,10 @@ code, pre, .font-mono {
   border: 1px solid #374151;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
 }
+/* Phones: keep the map credit line compact so it stays readable */
+@media (max-width: 639px) {
+  .leaflet-control-attribution {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+}
