@@ -8,7 +8,51 @@ import {
   LayerGroup,
   useMap,
 } from 'react-leaflet';
+import type { TileLayerProps } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
+
+// ---------------------------------------------------------------------------
+// Basemaps. With VITE_ARCGIS_API_KEY set, tiles come from Esri's licensed
+// ArcGIS Location Platform services (key restricted by referrer). Without a
+// key (e.g. a fresh local checkout) the map falls back to Esri's public
+// tile endpoints so development still works.
+// ---------------------------------------------------------------------------
+const ARCGIS_KEY = (import.meta.env.VITE_ARCGIS_API_KEY ?? '').trim();
+const STATIC_TILES =
+  'https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1';
+const POWERED_BY = 'Powered by <a href="https://www.esri.com">Esri</a>';
+const DARK_CREDIT = `${POWERED_BY} &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community`;
+const IMAGERY_CREDIT = `${POWERED_BY} &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community`;
+
+// Static basemap tiles are 512 px, one zoom level "behind" standard 256 px tiles.
+const STATIC_512 = { tileSize: 512, zoomOffset: -1, minNativeZoom: 1, maxZoom: 19 };
+
+type BasemapSet = { dark: TileLayerProps[]; satellite: TileLayerProps[] };
+
+const BASEMAPS: BasemapSet = ARCGIS_KEY
+  ? {
+      dark: [
+        { url: `${STATIC_TILES}/arcgis/dark-gray/static/tile/{z}/{y}/{x}?token=${ARCGIS_KEY}`, attribution: DARK_CREDIT, ...STATIC_512 },
+      ],
+      satellite: [
+        { url: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${ARCGIS_KEY}`, attribution: IMAGERY_CREDIT, maxNativeZoom: 19, maxZoom: 19 },
+        { url: `${STATIC_TILES}/arcgis/imagery/labels/static/tile/{z}/{y}/{x}?token=${ARCGIS_KEY}`, ...STATIC_512 },
+      ],
+    }
+  : {
+      dark: [
+        { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: DARK_CREDIT, maxNativeZoom: 16, maxZoom: 19 },
+        { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16, maxZoom: 19 },
+      ],
+      satellite: [
+        { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: IMAGERY_CREDIT, maxNativeZoom: 19, maxZoom: 19 },
+        { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16, maxZoom: 19 },
+      ],
+    };
+
+if (!ARCGIS_KEY) {
+  console.warn('VITE_ARCGIS_API_KEY is not set - using public Esri tiles (development only).');
+}
 
 interface RawFireObservation {
   id: number;
@@ -255,32 +299,16 @@ export default function FireMap({
 
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Dark map (Esri Dark Gray)">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-              attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community'
-              maxNativeZoom={16}
-              maxZoom={19}
-            />
+            <LayerGroup>
+              {BASEMAPS.dark.map((t) => <TileLayer key={t.url} {...t} />)}
+            </LayerGroup>
           </LayersControl.BaseLayer>
 
-          <LayersControl.BaseLayer name="Satellite (Esri World Imagery)">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-              maxNativeZoom={19}
-              maxZoom={19}
-            />
+          <LayersControl.BaseLayer name="Satellite with place names (Esri World Imagery)">
+            <LayerGroup>
+              {BASEMAPS.satellite.map((t) => <TileLayer key={t.url} {...t} />)}
+            </LayerGroup>
           </LayersControl.BaseLayer>
-
-          <LayersControl.Overlay checked name="Place names &amp; borders">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-              attribution='Labels &copy; <a href="https://www.esri.com">Esri</a>'
-              maxNativeZoom={16}
-              maxZoom={19}
-              zIndex={10}
-            />
-          </LayersControl.Overlay>
 
           <LayersControl.Overlay
             checked={showModis}

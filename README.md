@@ -315,6 +315,7 @@ The intended configuration uses:
 | Variable | Default | Purpose |
 |---|---|---|
 | `VITE_API_URL` | empty | Backend base URL in production (e.g. your Render URL). Leave empty locally. |
+| `VITE_ARCGIS_API_KEY` | empty | ArcGIS Location Platform API key for licensed Esri basemaps (public key, *Static basemap tiles* privilege, referrer-restricted). Without it the map falls back to public Esri tiles for development. |
 
 When deploying, set `VITE_API_URL` on the frontend host to the backend URL, and add the frontend URL to `CORS_ORIGINS` on the backend.
 

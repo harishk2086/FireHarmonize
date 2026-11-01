@@ -58,3 +58,8 @@ def test_api_filtering():
     r = c.get("/api/harmonization/run?radius_km=2&window_min=60").json()
     assert r["statistics"]["matched_pairs"] > 0
     assert len(c.get("/api/stats/trends").json()["daily"]) > 0
+
+
+def test_root_points_to_docs():
+    r = TestClient(app).get("/")
+    assert r.status_code == 200 and r.json()["docs"] == "/docs"

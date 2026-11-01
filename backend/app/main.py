@@ -72,6 +72,12 @@ H = dict(radius_km=Query(DEFAULT_RADIUS_KM, gt=0, le=10), window_min=Query(DEFAU
          conf=Query(DEFAULT_CONF, ge=0, le=100))
 
 
+@app.get("/")
+def root():
+    return {"name": "FireHarmonize API", "mode": MODE, "label": LABEL,
+            "docs": "/docs", "health": "/api/health"}
+
+
 @app.get("/api/health")
 def health():
     return {"mode": MODE, "label": LABEL}

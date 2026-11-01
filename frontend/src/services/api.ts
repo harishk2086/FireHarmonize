@@ -206,7 +206,11 @@ export async function waitForBackend(
         const timer = window.setTimeout(() => ctrl.abort(), 15000);
         const res = await fetch(`${API_BASE}/health`, { signal: ctrl.signal });
         window.clearTimeout(timer);
-        if (res.ok) return;
+        // Must be our JSON health response, not a host's "waking up" HTML page.
+        if (res.ok) {
+          const body = await res.json().catch(() => null);
+          if (body && typeof body.mode === 'string') return;
+        }
       } catch {
         // backend not reachable yet - retry below
       }
