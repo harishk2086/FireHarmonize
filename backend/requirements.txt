@@ -1,9 +1,15 @@
-fastapi
-uvicorn
-pandas
-numpy
-scikit-learn
-requests
-python-dotenv
-pytest
-httpx
+# Pinned to versions tested locally with Python 3.13 (see /.python-version)
+fastapi==0.142.2
+starlette==1.7.0
+pydantic==2.13.5
+uvicorn==0.54.0
+pandas==3.0.6
+numpy==2.5.3
+scikit-learn==1.9.1
+scipy==1.18.1
+requests==2.34.2
+python-dotenv==1.2.4
+
+# Test-only
+pytest==9.1.1
+httpx==0.28.1
