@@ -34,7 +34,7 @@ import {
   Cell
 } from 'recharts';
 
-import { api } from './services/api';
+import { api, API_BASE } from './services/api';
 import {
   KpiStats,
   RawFireObservation,
@@ -150,7 +150,7 @@ const [selectedHotspot, setSelectedHotspot] =
 
       setError(
         err.message ||
-        'Could not connect to FastAPI backend at http://localhost:8000/api'
+        `Could not connect to the FastAPI backend at ${API_BASE}`
       );
     } finally {
       setLoading(false);

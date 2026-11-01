@@ -6,7 +6,9 @@ import {
   DataQualityReport,
 } from '../types';
 
-const API_BASE = '/api';
+// Empty in local dev (Vite proxies /api to localhost:8000); set VITE_API_URL to the backend URL in production.
+const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
+export const API_BASE = `${API_ORIGIN}/api`;
 
 interface BackendFire {
   observation_id: string;

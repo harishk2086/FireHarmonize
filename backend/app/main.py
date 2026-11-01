@@ -1,13 +1,26 @@
 import os
 from functools import lru_cache
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from .demo import make_demo, DEMO_LABEL
 from .harmonize import Params, harmonize, statistics
+
+load_dotenv()  # reads backend/.env if present; real environment variables take precedence
 
 app = FastAPI(title="FIREHARMONIZE API")
 MODE = os.getenv("DATA_MODE", "demo")
 LABEL = DEMO_LABEL if MODE == "demo" else None
+
+# Comma-separated list of frontend origins allowed to call the API (e.g. your Vercel URL).
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET"], allow_headers=["*"])
+
+# Default harmonization parameters (prototype values, not NASA constants); overridable per request.
+DEFAULT_RADIUS_KM = float(os.getenv("SPATIAL_MATCH_RADIUS_KM", "1.0"))
+DEFAULT_WINDOW_MIN = float(os.getenv("TEMPORAL_MATCH_WINDOW_MINUTES", "30"))
+DEFAULT_CONF = float(os.getenv("CONFIDENCE_THRESHOLD", "30"))
 
 
 @lru_cache(maxsize=1)
@@ -55,7 +68,8 @@ def _ts(df):
     return df
 
 
-H = dict(radius_km=Query(1.0, gt=0, le=10), window_min=Query(30, gt=0, le=240), conf=Query(30, ge=0, le=100))
+H = dict(radius_km=Query(DEFAULT_RADIUS_KM, gt=0, le=10), window_min=Query(DEFAULT_WINDOW_MIN, gt=0, le=240),
+         conf=Query(DEFAULT_CONF, ge=0, le=100))
 
 
 @app.get("/api/health")
@@ -99,7 +113,7 @@ def harmonized(radius_km: float = H["radius_km"], window_min: float = H["window_
 def trends(start: str = None, end: str = None, bbox: str = None,
            radius_km: float = H["radius_km"], window_min: float = H["window_min"]):
     d = filt(load_raw(), start, end, bbox)
-    _, ev = run(radius_km, window_min, 30, start, end, bbox)
+    _, ev = run(radius_km, window_min, DEFAULT_CONF, start, end, bbox)
     raw = d.groupby([d.acq_datetime.dt.date.astype(str), "sensor"]).size().unstack(fill_value=0)
     h = ev.groupby("date").size()
     return {"daily": [{"date": k, "modis": int(r.get("MODIS", 0)), "viirs": int(r.get("VIIRS", 0)),
