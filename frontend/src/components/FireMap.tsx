@@ -253,14 +253,35 @@ export default function FireMap({
       >
         <MapResizeHandler />
 
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community'
-          maxNativeZoom={16}
-          maxZoom={18}
-        />
-
         <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Dark map (Esri Dark Gray)">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors, and the GIS User Community'
+              maxNativeZoom={16}
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+
+          <LayersControl.BaseLayer name="Satellite (Esri World Imagery)">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+              maxNativeZoom={19}
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+
+          <LayersControl.Overlay checked name="Place names &amp; borders">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+              attribution='Labels &copy; <a href="https://www.esri.com">Esri</a>'
+              maxNativeZoom={16}
+              maxZoom={19}
+              zIndex={10}
+            />
+          </LayersControl.Overlay>
+
           <LayersControl.Overlay
             checked={showModis}
             name="MODIS Observations (Blue)"
@@ -344,7 +365,7 @@ eventHandlers={{
 
         
 
-      <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700 bg-slate-950/95 p-3 text-xs text-slate-200 shadow-lg">
+      <div className="pointer-events-none absolute bottom-7 left-3 z-[1000] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700 bg-slate-950/95 p-3 text-xs text-slate-200 shadow-lg">
         <div className="mb-2 font-bold tracking-wide">MAP LEGEND</div>
 
         <div className="mb-2 flex items-start gap-2">

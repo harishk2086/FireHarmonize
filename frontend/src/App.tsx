@@ -881,7 +881,7 @@ const [selectedHotspot, setSelectedHotspot] =
                   </div>
                 </div>
 
-                <div className="relative h-[520px] rounded-xl overflow-hidden bg-[#0d131f] border border-slate-800">
+                <div className="relative rounded-xl overflow-hidden bg-[#0d131f] border border-slate-800">
 
                   <div className="absolute inset-0 opacity-20">
                     <div
@@ -910,35 +910,12 @@ const [selectedHotspot, setSelectedHotspot] =
 
 
                   {/* Map Labels */}
-                  <div className="absolute top-3 left-3 px-3 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur">
+                  <div className="pointer-events-none absolute top-3 left-14 px-3 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur">
                     <div className="text-amber-400 font-bold mb-1">
                       DEMO SPATIAL VIEW
                     </div>
                     <div>
                       Northern Hemisphere Active Fire Region
-                    </div>
-                  </div>
-
-                  <div className="absolute bottom-4 left-4 p-3 rounded-lg bg-slate-900/90 border border-slate-800 text-xs font-mono space-y-1.5 backdrop-blur">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                      <span>
-                        MODIS Observation (1km)
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                      <span>
-                        VIIRS Observation (375m)
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-amber-400 border border-slate-900 inline-block"></span>
-                      <span>
-                        Harmonized Event
-                      </span>
                     </div>
                   </div>
                 </div>
