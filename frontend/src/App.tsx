@@ -35,6 +35,23 @@ import {
 } from 'recharts';
 
 import { api, API_BASE, waitForBackend } from './services/api';
+
+// Colour coding for harmonization status labels (Data Explorer).
+function statusStyle(status?: string): string {
+  switch (status) {
+    case 'MATCHED_EVENT':
+      return 'bg-amber-500/15 border-amber-500/40 text-amber-300';
+    case 'MODIS_ONLY':
+      return 'bg-blue-500/15 border-blue-500/40 text-blue-300';
+    case 'VIIRS_ONLY':
+      return 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300';
+    case 'LOW_CONFIDENCE':
+    case 'POSSIBLE_DUPLICATE':
+      return 'bg-slate-700/40 border-slate-600 text-slate-400';
+    default:
+      return 'bg-slate-800 border-slate-700 text-slate-400';
+  }
+}
 import {
   KpiStats,
   RawFireObservation,
@@ -185,8 +202,8 @@ const [selectedHotspot, setSelectedHotspot] =
         vRefreshed,
         hRefreshed
       ] = await Promise.all([
-        api.getModis(),
-        api.getViirs(),
+        api.getModis({ spatial_radius_km: spatialRadius, temporal_window_minutes: temporalWindow }),
+        api.getViirs({ spatial_radius_km: spatialRadius, temporal_window_minutes: temporalWindow }),
         api.getHarmonized({ spatial_radius_km: spatialRadius, temporal_window_minutes: temporalWindow })
       ]);
 
@@ -292,7 +309,7 @@ const [selectedHotspot, setSelectedHotspot] =
             h.event_datetime,
           confidence:
             `${Math.round(h.mean_confidence)}%`,
-          match_status: 'MATCHED_EVENT',
+          match_status: h.classification ?? 'MATCHED_EVENT',
           match_score: h.match_score
         }))
       );
@@ -532,7 +549,7 @@ const [selectedHotspot, setSelectedHotspot] =
                   bg: 'bg-emerald-500/10 border-emerald-500/20'
                 },
                 {
-                  label: 'Harmonized Events',
+                  label: 'Matched Pairs',
                   val: stats.matched_events,
                   color: 'text-amber-400',
                   bg: 'bg-amber-500/10 border-amber-500/30'
@@ -1485,9 +1502,8 @@ const [selectedHotspot, setSelectedHotspot] =
                         </td>
 
                         <td className="p-3">
-                          <span className="text-slate-400">
-                            {row.match_status ||
-                              'READY'}
+                          <span className={`px-2 py-0.5 rounded border text-[10px] font-mono ${statusStyle(row.match_status)}`}>
+                            {row.match_status || 'UNMATCHED'}
                           </span>
                         </td>
                       </tr>

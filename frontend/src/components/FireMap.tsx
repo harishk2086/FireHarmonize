@@ -158,14 +158,14 @@ function ObservationPopup({
       {observation.frp != null && (
         <div>
           <span className="font-semibold">Fire Radiative Power: </span>
-          {observation.frp} MW
+          {Number(observation.frp).toFixed(1)} MW
         </div>
       )}
 
       {observation.brightness_temperature != null && (
         <div>
           <span className="font-semibold">Brightness Temperature: </span>
-          {observation.brightness_temperature}
+          {Number(observation.brightness_temperature).toFixed(1)} K
         </div>
       )}
 
@@ -329,7 +329,7 @@ eventHandlers={{
                     weight: 2,
                   }}
                 >
-                  <Popup>
+                  <Popup autoPanPaddingTopLeft={[20, 100]}>
                     <ObservationPopup observation={fire} />
                   </Popup>
                 </CircleMarker>
@@ -355,7 +355,7 @@ eventHandlers={{
                     weight: 2,
                   }}
                 >
-                  <Popup>
+                  <Popup autoPanPaddingTopLeft={[20, 100]}>
                     <ObservationPopup observation={fire} />
                   </Popup>
                 </CircleMarker>
@@ -381,7 +381,7 @@ eventHandlers={{
                     weight: 2,
                   }}
                 >
-                  <Popup>
+                  <Popup autoPanPaddingTopLeft={[20, 100]}>
                     <HarmonizedPopup event={event} />
                   </Popup>
                 </CircleMarker>

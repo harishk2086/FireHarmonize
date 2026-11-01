@@ -10,7 +10,13 @@ export interface RawFireObservation {
   frp?: number;
   brightness_temperature?: number;
   source: string;
-  match_status: 'UNMATCHED' | 'MATCHED' | 'MODIS_ONLY' | 'VIIRS_ONLY';
+  match_status:
+    | 'UNMATCHED'
+    | 'MATCHED_EVENT'
+    | 'MODIS_ONLY'
+    | 'VIIRS_ONLY'
+    | 'LOW_CONFIDENCE'
+    | 'POSSIBLE_DUPLICATE';
 }
 
 export interface HarmonizedFireEvent {
@@ -26,6 +32,7 @@ export interface HarmonizedFireEvent {
   spatial_radius_km: number;
   temporal_window_minutes: number;
   harmonization_method: string;
+  classification?: string;
 }
 
 export interface KpiStats {

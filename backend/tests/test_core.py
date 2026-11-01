@@ -63,3 +63,16 @@ def test_api_filtering():
 def test_root_points_to_docs():
     r = TestClient(app).get("/")
     assert r.status_code == 200 and r.json()["docs"] == "/docs"
+
+
+def test_observation_status_matches_statistics():
+    c = TestClient(app)
+    obs = c.get("/api/harmonization/observations").json()
+    stats = c.get("/api/harmonization/run").json()["statistics"]
+    counts = {}
+    for o in obs:
+        counts[o["status"]] = counts.get(o["status"], 0) + 1
+    assert len(obs) == stats["modis_observations"] + stats["viirs_observations"]
+    assert counts.get("MATCHED_EVENT", 0) == 2 * stats["matched_pairs"]
+    assert counts.get("MODIS_ONLY", 0) == stats["modis_only"]
+    assert counts.get("VIIRS_ONLY", 0) == stats["viirs_only"]

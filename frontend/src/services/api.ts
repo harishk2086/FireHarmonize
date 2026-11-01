@@ -167,6 +167,7 @@ function convertHarmonizedEvent(
     spatial_radius_km: event.spatial_match_radius_km,
     temporal_window_minutes: event.temporal_match_window_min,
     harmonization_method: event.harmonization_method,
+    classification: event.classification,
   };
 }
 
@@ -228,6 +229,50 @@ export async function waitForBackend(
     onWait(null);
   }
 }
+interface ObservationStatus {
+  observation_id: string;
+  status: RawFireObservation['match_status'];
+}
+
+type MatchParams = { spatial_radius_km: number; temporal_window_minutes: number };
+
+function matchQuery(params?: MatchParams): string {
+  return params
+    ? `?radius_km=${params.spatial_radius_km}&window_min=${params.temporal_window_minutes}`
+    : '';
+}
+
+// Observations with their harmonization status for the given parameters.
+// getModis() and getViirs() are usually called together; sharing one in-flight
+// request avoids downloading every observation page twice.
+let inflightObservations: { key: string; promise: Promise<RawFireObservation[]> } | null = null;
+
+function loadObservations(params?: MatchParams): Promise<RawFireObservation[]> {
+  const key = matchQuery(params);
+  if (inflightObservations && inflightObservations.key === key) {
+    return inflightObservations.promise;
+  }
+
+  const promise = (async () => {
+    const [fires, statuses] = await Promise.all([
+      fetchAllFires(),
+      fetchJson<ObservationStatus[]>(`/harmonization/observations${key}`),
+    ]);
+    const statusById = new Map(statuses.map((s) => [s.observation_id, s.status]));
+    return fires.map((fire, i) => ({
+      ...convertFire(fire, i),
+      match_status: statusById.get(fire.observation_id) ?? 'UNMATCHED',
+    }));
+  })();
+
+  inflightObservations = { key, promise };
+  const clear = () => {
+    if (inflightObservations?.promise === promise) inflightObservations = null;
+  };
+  promise.then(clear, clear);
+  return promise;
+}
+
 export const api = {
   checkHealth: () =>
     fetchJson<{
@@ -245,20 +290,14 @@ export const api = {
   },
 
 
-getModis: async (): Promise<RawFireObservation[]> => {
-  const fires = await fetchAllFires();
-
-  return fires
-    .filter((fire) => fire.sensor === 'MODIS')
-    .map(convertFire);
+getModis: async (params?: MatchParams): Promise<RawFireObservation[]> => {
+  const all = await loadObservations(params);
+  return all.filter((fire) => fire.sensor === 'MODIS');
 },
 
-getViirs: async (): Promise<RawFireObservation[]> => {
-  const fires = await fetchAllFires();
-
-  return fires
-    .filter((fire) => fire.sensor === 'VIIRS')
-    .map(convertFire);
+getViirs: async (params?: MatchParams): Promise<RawFireObservation[]> => {
+  const all = await loadObservations(params);
+  return all.filter((fire) => fire.sensor === 'VIIRS');
 },
 
 

@@ -108,6 +108,16 @@ def matches(radius_km: float = H["radius_km"], window_min: float = H["window_min
     return _js(_ts(m))
 
 
+@app.get("/api/harmonization/observations")
+def observation_status(radius_km: float = H["radius_km"], window_min: float = H["window_min"], conf: float = H["conf"],
+                       start: str = None, end: str = None, bbox: str = None):
+    """Per-observation harmonization status (MATCHED_EVENT, MODIS_ONLY, VIIRS_ONLY,
+    LOW_CONFIDENCE, POSSIBLE_DUPLICATE) for the given parameters."""
+    o, _ = run(radius_km, window_min, conf, start, end, bbox)
+    cols = ["observation_id", "status", "event_id", "partner_id", "match_score"]
+    return _js(o[cols])
+
+
 @app.get("/api/fires/harmonized")
 def harmonized(radius_km: float = H["radius_km"], window_min: float = H["window_min"], conf: float = H["conf"],
                start: str = None, end: str = None, bbox: str = None):
