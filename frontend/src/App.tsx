@@ -34,7 +34,7 @@ import {
   Cell
 } from 'recharts';
 
-import { api, API_BASE } from './services/api';
+import { api, API_BASE, waitForBackend } from './services/api';
 import {
   KpiStats,
   RawFireObservation,
@@ -55,6 +55,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [wakingSeconds, setWakingSeconds] = useState<number | null>(null);
 
   // Data states
   const [stats, setStats] = useState<KpiStats>({
@@ -123,6 +124,8 @@ const [selectedHotspot, setSelectedHotspot] =
     setError(null);
 
     try {
+      await waitForBackend(setWakingSeconds);
+
       const [
         sData,
         mData,
@@ -469,6 +472,21 @@ const [selectedHotspot, setSelectedHotspot] =
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
+        {wakingSeconds !== null && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-center space-x-3">
+            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0" />
+
+            <div>
+              <p className="font-semibold text-sm">
+                Waking up the backend server... ({wakingSeconds}s)
+              </p>
+
+              <p className="text-xs text-amber-200/70">
+                Free hosting puts the server to sleep when idle. The first load can take up to a minute; the dashboard will fill in automatically.
+              </p>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -912,10 +930,10 @@ const [selectedHotspot, setSelectedHotspot] =
                   {/* Map Labels */}
                   <div className="pointer-events-none absolute top-3 left-14 px-3 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur">
                     <div className="text-amber-400 font-bold mb-1">
-                      DEMO SPATIAL VIEW
+                      DEMO DATA (SYNTHETIC)
                     </div>
                     <div>
-                      Northern Hemisphere Active Fire Region
+                      South India &middot; 10&ndash;14&deg;N, 77&ndash;80.5&deg;E &middot; Feb&ndash;Apr 2025
                     </div>
                   </div>
                 </div>

@@ -183,6 +183,47 @@ function convertStats(
   };
 }
 
+/**
+ * Waits until the backend answers /health. Free hosting tiers put idle servers
+ * to sleep, so the first request after a pause can take up to a minute.
+ * onWait receives the seconds waited so far (after 2 s), and null when done.
+ */
+export async function waitForBackend(
+  onWait: (seconds: number | null) => void,
+  timeoutMs = 90000,
+  retryMs = 3000
+): Promise<void> {
+  const start = Date.now();
+  const ticker = window.setInterval(() => {
+    const s = Math.round((Date.now() - start) / 1000);
+    if (s >= 2) onWait(s);
+  }, 1000);
+
+  try {
+    for (;;) {
+      try {
+        const ctrl = new AbortController();
+        const timer = window.setTimeout(() => ctrl.abort(), 15000);
+        const res = await fetch(`${API_BASE}/health`, { signal: ctrl.signal });
+        window.clearTimeout(timer);
+        if (res.ok) return;
+      } catch {
+        // backend not reachable yet - retry below
+      }
+
+      if (Date.now() - start >= timeoutMs) {
+        throw new Error(
+          `The backend at ${API_BASE} did not respond within ${Math.round(timeoutMs / 1000)} seconds.`
+        );
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, retryMs));
+    }
+  } finally {
+    window.clearInterval(ticker);
+    onWait(null);
+  }
+}
 export const api = {
   checkHealth: () =>
     fetchJson<{
