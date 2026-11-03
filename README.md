@@ -20,7 +20,11 @@ The platform aims to improve the interpretation of satellite-based fire observat
 | Interactive API docs | https://fireharmonize.onrender.com/docs |
 | API health check | https://fireharmonize.onrender.com/api/health |
 
-- **Data:** the live site shows **real NASA FIRMS detections** (MODIS_NRT + VIIRS_SNPP_NRT) for **Punjab & Haryana, India** (73.5–77.5°E, 28.5–32.5°N), for the **last 3 days**, refreshed at most once an hour. The top banner shows the region, dates and fetch time.
+- **Data:** the live site shows **real NASA FIRMS detections** (MODIS_NRT + VIIRS_SNPP_NRT) for the **last 3 days**, refreshed at most once an hour, for two regions you can switch between in the top banner:
+  - **Punjab & Haryana** (73.5–77.5°E, 28.5–32.5°N) — the default; crop-residue burning makes it one of India's most active fire regions.
+  - **South India** (74–84.8°E, 8–20°N) — if it has no detections in the last 3 days (e.g. during the monsoon), the app looks back 10 days.
+
+  The banner also shows the dates and the fetch time.
 - **Fallback:** if NASA FIRMS cannot be reached, the dashboard switches to a clearly labelled **synthetic demo dataset** (South India) and the banner turns red: *"Live data unavailable"*.
 - **First load may take up to a minute.** The backend is hosted on Render's free plan, which sleeps after 15 minutes without visitors. The dashboard shows a *"Waking up the backend server…"* banner and fills in automatically once the server is ready.
 - **Hosting:** frontend on Vercel, backend on Render, basemaps from the Esri ArcGIS Location Platform (API key restricted to the dashboard's address).
@@ -286,7 +290,8 @@ python -m pytest -q
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/health` | Backend health and operating mode (never contacts FIRMS) |
-| GET | `/api/dataset` | Which data is being served: live / demo / demo-fallback, region, dates, sources, fetch time |
+| GET | `/api/regions` | Regions available (live: Punjab & Haryana, South India; demo: one synthetic region) |
+| GET | `/api/dataset` | Which data is being served for a region: live / demo / demo-fallback, dates, sources, fetch time |
 | GET | `/api/fires` | Retrieve fire observations |
 | GET | `/api/fires/harmonized` | Retrieve harmonized events |
 | GET | `/api/harmonization/run` | Execute prototype harmonization |
@@ -300,6 +305,7 @@ Supported fire-data filters include:
 - `end` — End date
 - `bbox` — Geographic bounding box (`west,south,east,north`)
 - `sensor` — Sensor selection
+- `region` — Region id from `/api/regions` (`punjab-haryana`, `south-india`); every data endpoint accepts it, default is the first region
 
 Refer to the FastAPI Swagger documentation for supported parameters and response schemas.
 
@@ -313,9 +319,10 @@ Refer to the FastAPI Swagger documentation for supported parameters and response
 
 `https://firms.modaps.eosdis.nasa.gov/api/area/csv/<MAP_KEY>/<SOURCE>/<west,south,east,north>/<days>`
 
-for `MODIS_NRT` and `VIIRS_SNPP_NRT`. `backend/app/dataset.py` then:
+for `MODIS_NRT` and `VIIRS_SNPP_NRT`, separately for each region (Punjab & Haryana, South India). `backend/app/dataset.py` then, per region:
 
 - caches the result for `LIVE_CACHE_MINUTES` (60), so visitors do not use up the FIRMS quota;
+- if the region has no detections in `LIVE_DAYS` (3), looks back 10 days (the API maximum);
 - if a refresh fails, keeps serving the last good copy, marked *cached copy (refresh failed)*, and retries after `LIVE_RETRY_MINUTES` (5);
 - if nothing has been fetched yet and FIRMS is unreachable (or returns no detections), serves the synthetic demo data with `mode: "demo-fallback"` and a red *Live data unavailable* banner.
 
@@ -337,9 +344,8 @@ Synthetic fire observations generated in `backend/app/demo.py` (South India, Feb
 |---|---|---|
 | `DATA_MODE` | `demo` | `demo` or `live` |
 | `FIRMS_MAP_KEY` | — | NASA FIRMS MAP_KEY, server-side only (required for live mode) |
-| `LIVE_BBOX` | `73.5,28.5,77.5,32.5` | Live region as `west,south,east,north` |
-| `LIVE_REGION_NAME` | `Punjab & Haryana` | Region name shown on the dashboard |
-| `LIVE_DAYS` | `3` | Days of FIRMS data to fetch (1–10) |
+| `LIVE_REGIONS` | Punjab & Haryana + South India | Live regions as `id\|Name\|west,south,east,north;…` — the first is the default |
+| `LIVE_DAYS` | `3` | Days of FIRMS data to fetch (1–10); quiet regions fall back to 10 |
 | `LIVE_CACHE_MINUTES` | `60` | How long a FIRMS download is reused |
 | `LIVE_RETRY_MINUTES` | `5` | Wait before retrying after a failed fetch |
 | `LIVE_MODIS_SOURCE` / `LIVE_VIIRS_SOURCE` | `MODIS_NRT` / `VIIRS_SNPP_NRT` | FIRMS source names |

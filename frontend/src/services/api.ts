@@ -79,11 +79,24 @@ interface BackendHarmonizedEvent {
   temporal_match_window_min: number;
 }
 
+// Region the dashboard is showing; sent as ?region= on every data request.
+let currentRegion: string | null = null;
+
+export function setRegion(regionId: string | null) {
+  currentRegion = regionId;
+}
+
+function withRegion(endpoint: string): string {
+  if (!currentRegion) return endpoint;
+  const sep = endpoint.includes('?') ? '&' : '?';
+  return `${endpoint}${sep}region=${encodeURIComponent(currentRegion)}`;
+}
+
 async function fetchJson<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetch(`${API_BASE}${withRegion(endpoint)}`, {
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -248,7 +261,8 @@ function matchQuery(params?: MatchParams): string {
 let inflightObservations: { key: string; promise: Promise<RawFireObservation[]> } | null = null;
 
 function loadObservations(params?: MatchParams): Promise<RawFireObservation[]> {
-  const key = matchQuery(params);
+  const query = matchQuery(params);
+  const key = `${currentRegion}${query}`;
   if (inflightObservations && inflightObservations.key === key) {
     return inflightObservations.promise;
   }
@@ -256,7 +270,7 @@ function loadObservations(params?: MatchParams): Promise<RawFireObservation[]> {
   const promise = (async () => {
     const [fires, statuses] = await Promise.all([
       fetchAllFires(),
-      fetchJson<ObservationStatus[]>(`/harmonization/observations${key}`),
+      fetchJson<ObservationStatus[]>(`/harmonization/observations${query}`),
     ]);
     const statusById = new Map(statuses.map((s) => [s.observation_id, s.status]));
     return fires.map((fire, i) => ({
@@ -273,9 +287,17 @@ function loadObservations(params?: MatchParams): Promise<RawFireObservation[]> {
   return promise;
 }
 
-/** Which data the backend is serving (GET /api/dataset). */
+/** Regions the dashboard can switch between (GET /api/regions). */
+export interface RegionList {
+  mode: 'live' | 'demo';
+  default: string;
+  regions: { id: string; name: string; bbox: [number, number, number, number] }[];
+}
+
+/** Which data the backend is serving for the current region (GET /api/dataset). */
 export interface DatasetInfo {
   mode: 'live' | 'demo' | 'demo-fallback';
+  region_id: string;
   label: string;
   region: string;
   bbox: [number, number, number, number];
@@ -290,6 +312,8 @@ export interface DatasetInfo {
 }
 
 export const api = {
+  getRegions: () => fetchJson<RegionList>('/regions'),
+
   getDataset: () => fetchJson<DatasetInfo>('/dataset'),
 
   checkHealth: () =>

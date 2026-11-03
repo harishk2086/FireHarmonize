@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import firms, main
-from app.dataset import DataSource
+from app.dataset import DataSource, Regions, parse_regions
 from app.normalize import normalize
 
 MODIS_CSV = """latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_t31,frp,daynight
@@ -148,17 +148,72 @@ def test_peek_meta_never_fetches():
     assert src.peek_meta()["mode"] == "live" and calls == []
 
 
+def test_quiet_region_looks_back_ten_days():
+    f, empty = frames(), frames()["VIIRS"].iloc[0:0]
+    asked = []
+    def fetch(s, b, d):
+        asked.append(d)
+        return f[s] if d == 10 else empty
+    df, m = DataSource(mode="live", fetch=fetch, clock=Clock(), days=3).get()
+    assert m["mode"] == "live" and m["days"] == 10 and asked == [3, 3, 10, 10]
+
+
+def test_parse_regions():
+    assert list(parse_regions("")) == ["punjab-haryana", "south-india"]
+    r = parse_regions("a|Alpha|1,2,3,4; b|Beta|5,6,7,8")
+    assert r == {"a": ("Alpha", (1, 2, 3, 4)), "b": ("Beta", (5, 6, 7, 8))}
+
+
 # ---------------------------------------------------------------- API in live mode
+def live_regions(f, seen=None):
+    def fetch(s, b, d):
+        if seen is not None:
+            seen.append(b)
+        if b == (74.0, 8.0, 84.8, 20.0):          # South India: only the VIIRS rows
+            return f[s] if s == "VIIRS" else f[s].iloc[0:0]
+        return f[s]
+    return Regions(mode="live", fetch=fetch, clock=Clock())
+
+
 def test_api_serves_live_data(monkeypatch):
     f = frames()
-    monkeypatch.setattr(main, "SOURCE", DataSource(mode="live", fetch=lambda s, b, d: f[s], clock=Clock()))
+    monkeypatch.setattr(main, "REGIONS", live_regions(f))
     main._RUN_CACHE.clear()
     c = TestClient(main.app)
     ds = c.get("/api/dataset").json()
     assert ds["mode"] == "live" and ds["counts"] == {"MODIS": 3, "VIIRS": 2}
+    assert ds["region_id"] == "punjab-haryana"
     run = c.get("/api/harmonization/run").json()
     assert run["mode"] == "live" and run["is_demo"] is False
     assert run["statistics"]["modis_observations"] == 3 and run["statistics"]["matched_pairs"] == 1
     assert c.get("/api/fires").json()["total"] == 5
     assert c.get("/api/health").json()["mode"] == "live"
+    main._RUN_CACHE.clear()
+
+
+def test_api_regions_are_separate(monkeypatch):
+    f, seen = frames(), []
+    monkeypatch.setattr(main, "REGIONS", live_regions(f, seen))
+    main._RUN_CACHE.clear()
+    c = TestClient(main.app)
+    lst = c.get("/api/regions").json()
+    assert lst["mode"] == "live" and lst["default"] == "punjab-haryana"
+    assert [r["id"] for r in lst["regions"]] == ["punjab-haryana", "south-india"] and seen == []
+    si = c.get("/api/dataset?region=south-india").json()
+    assert si["region"] == "South India" and si["counts"] == {"VIIRS": 2}
+    assert c.get("/api/fires?region=south-india").json()["total"] == 2
+    assert c.get("/api/harmonization/run?region=south-india").json()["statistics"]["modis_observations"] == 0
+    assert c.get("/api/harmonization/run?region=punjab-haryana").json()["statistics"]["modis_observations"] == 3
+    assert c.get("/api/fires?region=nowhere").status_code == 404
+    main._RUN_CACHE.clear()
+
+
+def test_api_demo_mode_has_one_region(monkeypatch):
+    monkeypatch.setattr(main, "REGIONS", Regions(mode="demo"))
+    main._RUN_CACHE.clear()
+    c = TestClient(main.app)
+    lst = c.get("/api/regions").json()
+    assert lst == {"mode": "demo", "default": "demo",
+                   "regions": [{"id": "demo", "name": "South India (synthetic)", "bbox": [77.0, 10.0, 80.5, 14.0]}]}
+    assert c.get("/api/dataset").json()["mode"] == "demo"
     main._RUN_CACHE.clear()

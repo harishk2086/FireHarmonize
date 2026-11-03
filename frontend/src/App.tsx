@@ -36,7 +36,7 @@ import {
   Cell
 } from 'recharts';
 
-import { api, API_BASE, waitForBackend, type DatasetInfo } from './services/api';
+import { api, API_BASE, waitForBackend, setRegion, type DatasetInfo, type RegionList } from './services/api';
 
 // Data Explorer renders at most this many rows (live data can be thousands).
 const EXPLORER_LIMIT = 500;
@@ -138,6 +138,10 @@ export default function App() {
   // Live NASA FIRMS vs demo data, as reported by the backend
   const [dataset, setDataset] = useState<DatasetInfo | null>(null);
 
+  // Live regions (South India, Punjab & Haryana) and the one on screen
+  const [regionList, setRegionList] = useState<RegionList | null>(null);
+  const [regionId, setRegionId] = useState<string | null>(null);
+
   // Configurable Harmonization Parameters
   const [spatialRadius, setSpatialRadius] =
     useState<number>(1.0);
@@ -185,9 +189,18 @@ const [selectedHotspot, setSelectedHotspot] =
     try {
       await waitForBackend(setWakingSeconds);
 
+      if (!regionList) {
+        const list = await api.getRegions();
+        setRegionList(list);
+        if (!regionId) {
+          setRegion(list.default);
+          setRegionId(list.default);
+        }
+      }
+
       // Ask first: in live mode this triggers (or reuses) the NASA FIRMS fetch, so every
       // request below is served from the same data.
-      setDataset(await api.getDataset());
+      const info = await api.getDataset();
 
       const [
         sData,
@@ -203,6 +216,8 @@ const [selectedHotspot, setSelectedHotspot] =
         api.getDataQuality()
       ]);
 
+      // Set together so the map re-frames on the new region's points.
+      setDataset(info);
       setStats(sData);
       setModisFires(mData);
       setViirsFires(vData);
@@ -226,6 +241,34 @@ const [selectedHotspot, setSelectedHotspot] =
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // Region picker: in the header on wide screens, in the top banner on phones.
+  const regionSelect =
+    regionList && regionList.regions.length > 1 ? (
+      <select
+        value={regionId ?? ''}
+        onChange={(e) => changeRegion(e.target.value)}
+        disabled={loading}
+        title="Region (live NASA FIRMS data)"
+        aria-label="Region"
+        className="bg-slate-900/80 border border-slate-600 text-slate-100 text-[11px] font-mono rounded px-1.5 py-0.5 hover:border-slate-400 focus:outline-none focus:border-amber-400 transition cursor-pointer"
+      >
+        {regionList.regions.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
+      </select>
+    ) : null;
+
+  // Switch region: every request is re-sent with the new ?region=
+  const changeRegion = (id: string) => {
+    if (id === regionId) return;
+    setRegion(id);
+    setRegionId(id);
+    setSelectedHotspot(null);
+    loadAllData();
+  };
 
   // Trigger Backend Harmonization Re-calculation
   const handleHarmonize = async () => {
@@ -434,12 +477,15 @@ const [selectedHotspot, setSelectedHotspot] =
             </span>
           </div>
 
+          <div className="flex items-center gap-4 flex-shrink-0">
+          {regionSelect}
+
           <a
             href="#methodology"
             onClick={() =>
               setActiveTab('methodology')
             }
-            className="hover:underline flex items-center space-x-1 flex-shrink-0"
+            className="hover:underline hidden sm:flex items-center space-x-1 flex-shrink-0"
           >
             <span className="hidden sm:inline">
               Read Architecture Specs
@@ -447,6 +493,7 @@ const [selectedHotspot, setSelectedHotspot] =
 
             <ArrowRight className="w-3 h-3" />
           </a>
+          </div>
         </div>
       )}
 
@@ -996,6 +1043,7 @@ const [selectedHotspot, setSelectedHotspot] =
   }
 >
 <FireMap
+  key={dataset?.region_id ?? 'map'}
   modisFires={modisFires}
   viirsFires={viirsFires}
   harmonizedEvents={harmonizedEvents}
