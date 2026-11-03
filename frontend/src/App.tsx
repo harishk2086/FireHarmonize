@@ -36,7 +36,10 @@ import {
   Cell
 } from 'recharts';
 
-import { api, API_BASE, waitForBackend } from './services/api';
+import { api, API_BASE, waitForBackend, type DatasetInfo } from './services/api';
+
+// Data Explorer renders at most this many rows (live data can be thousands).
+const EXPLORER_LIMIT = 500;
 
 // Dashboard tabs (shared by the wide-screen bar and the mobile strip).
 const NAV_TABS = [
@@ -132,6 +135,9 @@ export default function App() {
   const [dataQuality, setDataQuality] =
     useState<DataQualityReport | null>(null);
 
+  // Live NASA FIRMS vs demo data, as reported by the backend
+  const [dataset, setDataset] = useState<DatasetInfo | null>(null);
+
   // Configurable Harmonization Parameters
   const [spatialRadius, setSpatialRadius] =
     useState<number>(1.0);
@@ -178,6 +184,10 @@ const [selectedHotspot, setSelectedHotspot] =
 
     try {
       await waitForBackend(setWakingSeconds);
+
+      // Ask first: in live mode this triggers (or reuses) the NASA FIRMS fetch, so every
+      // request below is served from the same data.
+      setDataset(await api.getDataset());
 
       const [
         sData,
@@ -383,18 +393,44 @@ const [selectedHotspot, setSelectedHotspot] =
   return (
     <div className="min-h-screen flex flex-col bg-[#0B0F19] text-slate-100">
 
-      {/* Top Banner for DEMO MODE indicator */}
-      {stats.data_mode === 'demo' && (
-        <div className="bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-amber-600/30 border-b border-amber-500/40 px-4 py-1.5 text-xs text-amber-200 flex items-center justify-between font-mono">
-          <div className="flex items-center space-x-2">
-            <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+      {/* Top banner: which data is on screen */}
+      {dataset && (
+        <div
+          className={`border-b px-4 py-1.5 text-xs flex items-center justify-between gap-3 font-mono ${
+            dataset.mode === 'live' && !dataset.stale
+              ? 'bg-emerald-600/15 border-emerald-500/40 text-emerald-200'
+              : dataset.mode === 'demo-fallback'
+                ? 'bg-red-600/15 border-red-500/40 text-red-200'
+                : 'bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-amber-600/30 border-amber-500/40 text-amber-200'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className={`flex h-2 w-2 flex-shrink-0 rounded-full animate-pulse ${
+                dataset.mode === 'live' && !dataset.stale
+                  ? 'bg-emerald-400'
+                  : dataset.mode === 'demo-fallback'
+                    ? 'bg-red-400'
+                    : 'bg-amber-400'
+              }`}
+            ></span>
 
-            <span className="font-bold tracking-wider uppercase text-amber-400">
-              DEMO DATA MODE ACTIVE
+            <span className="font-bold tracking-wider uppercase whitespace-nowrap">
+              {dataset.mode === 'live'
+                ? dataset.stale
+                  ? 'Live NASA FIRMS data (cached copy)'
+                  : 'Live NASA FIRMS data'
+                : dataset.mode === 'demo-fallback'
+                  ? 'Live data unavailable'
+                  : 'Demo data mode active'}
             </span>
 
-            <span className="text-amber-300/80 hidden sm:inline">
-              — Connect NASA FIRMS API key to enable live operational feed
+            <span className="opacity-80 hidden sm:inline truncate">
+              {dataset.mode === 'live'
+                ? `— ${dataset.region} · ${dataset.first_date} to ${dataset.last_date} · fetched ${dataset.fetched_at?.slice(11, 16)} UTC${dataset.stale ? ' (refresh failed)' : ''}`
+                : dataset.mode === 'demo-fallback'
+                  ? '— NASA FIRMS could not be reached; showing synthetic demo data'
+                  : '— synthetic dataset, not NASA observations'}
             </span>
           </div>
 
@@ -403,9 +439,9 @@ const [selectedHotspot, setSelectedHotspot] =
             onClick={() =>
               setActiveTab('methodology')
             }
-            className="hover:underline flex items-center space-x-1 text-amber-300"
+            className="hover:underline flex items-center space-x-1 flex-shrink-0"
           >
-            <span>
+            <span className="hidden sm:inline">
               Read Architecture Specs
             </span>
 
@@ -975,11 +1011,17 @@ const [selectedHotspot, setSelectedHotspot] =
 
                   {/* Map Labels */}
                   <div className="pointer-events-none absolute top-3 left-14 max-w-[calc(100%-8.5rem)] px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[9px] sm:text-[10px] font-mono text-slate-400 backdrop-blur">
-                    <div className="text-amber-400 font-bold mb-1">
-                      DEMO DATA (SYNTHETIC)
+                    <div className={`font-bold mb-1 ${dataset?.mode === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {dataset?.mode === 'live'
+                        ? `LIVE NASA FIRMS (${dataset.sources.join(' + ')})`
+                        : dataset?.mode === 'demo-fallback'
+                          ? 'DEMO DATA (LIVE UNAVAILABLE)'
+                          : 'DEMO DATA (SYNTHETIC)'}
                     </div>
                     <div>
-                      South India &middot; 10&ndash;14&deg;N, 77&ndash;80.5&deg;E &middot; Feb&ndash;Apr 2025
+                      {dataset
+                        ? `${dataset.region.replace(' (synthetic)', '')} · ${dataset.bbox[1]}–${dataset.bbox[3]}°N, ${dataset.bbox[0]}–${dataset.bbox[2]}°E · ${dataset.first_date} to ${dataset.last_date}`
+                        : 'Loading…'}
                     </div>
                   </div>
                 </div>
@@ -1443,7 +1485,9 @@ const [selectedHotspot, setSelectedHotspot] =
               </div>
 
               <div className="text-xs font-mono text-slate-400">
-                Showing {explorerRows.length} records
+                {explorerRows.length > EXPLORER_LIMIT
+                  ? `Showing first ${EXPLORER_LIMIT} of ${explorerRows.length} records (use search or filter to narrow)`
+                  : `Showing ${explorerRows.length} records`}
               </div>
             </div>
 
@@ -1482,7 +1526,7 @@ const [selectedHotspot, setSelectedHotspot] =
                 </thead>
 
                 <tbody className="divide-y divide-slate-800/60">
-                  {explorerRows.map(
+                  {explorerRows.slice(0, EXPLORER_LIMIT).map(
                     (row, idx) => (
                       <tr
                         key={idx}

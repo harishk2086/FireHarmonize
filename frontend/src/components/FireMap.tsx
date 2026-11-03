@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -108,6 +108,21 @@ function MapResizeHandler() {
 
     return () => window.clearTimeout(timer);
   }, [map]);
+
+  return null;
+}
+
+// Frame the data once when the map opens (South India demo, or the live region).
+function FitToData({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  const done = useRef(false);
+
+  useEffect(() => {
+    if (!done.current && points.length > 0) {
+      map.fitBounds(points, { padding: [30, 30], maxZoom: 9 });
+      done.current = true;
+    }
+  }, [map, points]);
 
   return null;
 }
@@ -286,6 +301,8 @@ export default function FireMap({
   return (
     <div className="relative z-0 h-[420px] w-full overflow-hidden rounded-xl border border-slate-800 sm:h-[500px] lg:h-[600px]">
       <MapContainer
+        // Canvas drawing keeps thousands of live detections smooth; small datasets stay SVG.
+        preferCanvas={allCoordinates.length > 1500}
         center={center}
         zoom={allCoordinates.length > 0 ? 5 : 2}
         scrollWheelZoom
@@ -296,6 +313,7 @@ export default function FireMap({
         }}
       >
         <MapResizeHandler />
+        <FitToData points={allCoordinates as [number, number][]} />
 
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Dark map (Esri Dark Gray)">

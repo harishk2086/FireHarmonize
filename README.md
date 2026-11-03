@@ -20,7 +20,8 @@ The platform aims to improve the interpretation of satellite-based fire observat
 | Interactive API docs | https://fireharmonize.onrender.com/docs |
 | API health check | https://fireharmonize.onrender.com/api/health |
 
-- **Data:** the live demo runs in **demo mode** with a clearly labelled **synthetic** dataset (186 observations over South India, 10–14°N, 77–80.5°E, Feb–Apr 2025). It is not real NASA satellite data.
+- **Data:** the live site shows **real NASA FIRMS detections** (MODIS_NRT + VIIRS_SNPP_NRT) for **Punjab & Haryana, India** (73.5–77.5°E, 28.5–32.5°N), for the **last 3 days**, refreshed at most once an hour. The top banner shows the region, dates and fetch time.
+- **Fallback:** if NASA FIRMS cannot be reached, the dashboard switches to a clearly labelled **synthetic demo dataset** (South India) and the banner turns red: *"Live data unavailable"*.
 - **First load may take up to a minute.** The backend is hosted on Render's free plan, which sleeps after 15 minutes without visitors. The dashboard shows a *"Waking up the backend server…"* banner and fills in automatically once the server is ready.
 - **Hosting:** frontend on Vercel, backend on Render, basemaps from the Esri ArcGIS Location Platform (API key restricted to the dashboard's address).
 
@@ -71,7 +72,7 @@ FireHarmonize is designed around two major satellite observation systems:
 | MODIS | Terra and Aqua | Active-fire and thermal-anomaly observations |
 | VIIRS | Suomi-NPP, NOAA-20 and NOAA-21 | Active-fire and thermal-anomaly observations |
 
-**Current data status:** Demo mode uses a synthetic dataset generated in memory by `backend/app/demo.py` (186 observations: 90 MODIS, 96 VIIRS). A NASA FIRMS connector exists in `backend/app/firms.py`, but live mode is not wired up yet — setting `DATA_MODE=live` currently returns HTTP 501.
+**Current data status:** live mode fetches near-real-time MODIS and VIIRS (S-NPP) detections from the NASA FIRMS area API. Demo mode uses a synthetic dataset generated in memory by `backend/app/demo.py` (186 observations: 90 MODIS, 96 VIIRS over South India).
 
 ---
 
@@ -284,7 +285,8 @@ python -m pytest -q
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/health` | Backend health and operating mode |
+| GET | `/api/health` | Backend health and operating mode (never contacts FIRMS) |
+| GET | `/api/dataset` | Which data is being served: live / demo / demo-fallback, region, dates, sources, fetch time |
 | GET | `/api/fires` | Retrieve fire observations |
 | GET | `/api/fires/harmonized` | Retrieve harmonized events |
 | GET | `/api/harmonization/run` | Execute prototype harmonization |
@@ -305,34 +307,25 @@ Refer to the FastAPI Swagger documentation for supported parameters and response
 
 ## 🧪 Demo Mode and Live Data
 
-### Demo Mode
+### Live Mode (`DATA_MODE=live`)
 
-The default demo configuration uses synthetic fire observations generated in:
+`backend/app/firms.py` calls the NASA FIRMS area API:
 
-`backend/app/demo.py`
+`https://firms.modaps.eosdis.nasa.gov/api/area/csv/<MAP_KEY>/<SOURCE>/<west,south,east,north>/<days>`
 
-These observations pass through the same normalization and harmonization pipeline used by the application.
+for `MODIS_NRT` and `VIIRS_SNPP_NRT`. `backend/app/dataset.py` then:
 
-The dashboard labels this dataset:
+- caches the result for `LIVE_CACHE_MINUTES` (60), so visitors do not use up the FIRMS quota;
+- if a refresh fails, keeps serving the last good copy, marked *cached copy (refresh failed)*, and retries after `LIVE_RETRY_MINUTES` (5);
+- if nothing has been fetched yet and FIRMS is unreachable (or returns no detections), serves the synthetic demo data with `mode: "demo-fallback"` and a red *Live data unavailable* banner.
 
-**DEMO DATA — connect NASA FIRMS/Earthdata to enable live/historical data.**
+Get a free MAP_KEY at https://firms.modaps.eosdis.nasa.gov/api/map_key/.
 
-### Live Data Integration
+**Security:** the FIRMS key is used only by the backend (Render environment variable `FIRMS_MAP_KEY`). It never appears in frontend code, API responses, logs or error messages, and must never be committed to GitHub.
 
-The backend includes a NASA FIRMS integration path in:
+### Demo Mode (`DATA_MODE=demo`, default)
 
-`backend/app/firms.py`
-
-The intended configuration uses:
-
-- `FIRMS_MAP_KEY` — Server-side NASA FIRMS API key.
-- MODIS NRT observations.
-- VIIRS SNPP NRT observations.
-- Historical SP sources where supported.
-
-**Status:** the connector (`fetch()`) is implemented, but the API does not call it yet. A loader that fetches and caches FIRMS data for live mode still needs to be written.
-
-**Security:** Never expose the FIRMS API key in frontend code or commit actual API credentials to GitHub.
+Synthetic fire observations generated in `backend/app/demo.py` (South India, Feb–Apr 2025) pass through the same normalization and harmonization pipeline. The dashboard labels them **DEMO DATA (SYNTHETIC)**; they must not be read as real satellite detections.
 
 ---
 
@@ -342,8 +335,14 @@ The intended configuration uses:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DATA_MODE` | `demo` | `demo` or `live` (live not implemented yet) |
-| `FIRMS_MAP_KEY` | — | NASA FIRMS MAP_KEY, server-side only |
+| `DATA_MODE` | `demo` | `demo` or `live` |
+| `FIRMS_MAP_KEY` | — | NASA FIRMS MAP_KEY, server-side only (required for live mode) |
+| `LIVE_BBOX` | `73.5,28.5,77.5,32.5` | Live region as `west,south,east,north` |
+| `LIVE_REGION_NAME` | `Punjab & Haryana` | Region name shown on the dashboard |
+| `LIVE_DAYS` | `3` | Days of FIRMS data to fetch (1–10) |
+| `LIVE_CACHE_MINUTES` | `60` | How long a FIRMS download is reused |
+| `LIVE_RETRY_MINUTES` | `5` | Wait before retrying after a failed fetch |
+| `LIVE_MODIS_SOURCE` / `LIVE_VIIRS_SOURCE` | `MODIS_NRT` / `VIIRS_SNPP_NRT` | FIRMS source names |
 | `SPATIAL_MATCH_RADIUS_KM` | `1.0` | Default spatial matching radius |
 | `TEMPORAL_MATCH_WINDOW_MINUTES` | `30` | Default temporal matching window |
 | `CONFIDENCE_THRESHOLD` | `30` | Default minimum confidence for matching |
@@ -386,7 +385,7 @@ FireHarmonize is an experimental prototype. Its current limitations include:
 
 ## 🔮 Future Enhancements
 
-- Verified live and historical NASA FIRMS data integration.
+- Historical (standard-processing) NASA FIRMS archives and user-selectable regions.
 - Improved global matching algorithms.
 - Advanced fire-event clustering and tracking.
 - Cross-sensor Fire Radiative Power (FRP) analysis.

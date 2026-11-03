@@ -104,7 +104,7 @@ async function fetchJson<T>(
 }
 
 async function fetchAllFires(): Promise<BackendFire[]> {
-  const pageSize = 100;
+  const pageSize = 1000; // live data can be thousands of detections
 
   const firstPage = await fetchJson<FiresResponse>(
     `/fires?page=1&size=${pageSize}`
@@ -273,7 +273,25 @@ function loadObservations(params?: MatchParams): Promise<RawFireObservation[]> {
   return promise;
 }
 
+/** Which data the backend is serving (GET /api/dataset). */
+export interface DatasetInfo {
+  mode: 'live' | 'demo' | 'demo-fallback';
+  label: string;
+  region: string;
+  bbox: [number, number, number, number];
+  sources: string[];
+  days: number | null;
+  first_date: string | null;
+  last_date: string | null;
+  fetched_at: string | null;
+  stale: boolean;
+  reason: string | null;
+  counts: Record<string, number>;
+}
+
 export const api = {
+  getDataset: () => fetchJson<DatasetInfo>('/dataset'),
+
   checkHealth: () =>
     fetchJson<{
       status?: string;

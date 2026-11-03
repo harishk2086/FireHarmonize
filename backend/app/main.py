@@ -1,17 +1,16 @@
 import os
-from functools import lru_cache
+import threading
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from .demo import make_demo, DEMO_LABEL
+from .dataset import DataSource
 from .harmonize import Params, harmonize, statistics
 
 load_dotenv()  # reads backend/.env if present; real environment variables take precedence
 
 app = FastAPI(title="FIREHARMONIZE API")
-MODE = os.getenv("DATA_MODE", "demo")
-LABEL = DEMO_LABEL if MODE == "demo" else None
+SOURCE = DataSource.from_env()   # demo, or live NASA FIRMS with caching + fallback (see dataset.py)
 
 # Comma-separated list of frontend origins allowed to call the API (e.g. your Vercel URL).
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
@@ -23,11 +22,12 @@ DEFAULT_WINDOW_MIN = float(os.getenv("TEMPORAL_MATCH_WINDOW_MINUTES", "30"))
 DEFAULT_CONF = float(os.getenv("CONFIDENCE_THRESHOLD", "30"))
 
 
-@lru_cache(maxsize=1)
 def load_raw():
-    if MODE == "demo":
-        return make_demo()
-    raise HTTPException(501, "Live mode: ingest via app.firms.fetch (requires FIRMS_MAP_KEY).")
+    return SOURCE.get()[0]
+
+
+def meta():
+    return SOURCE.get()[1]
 
 
 def filt(df, start=None, end=None, bbox=None, sensor=None):
@@ -49,11 +49,23 @@ def filt(df, start=None, end=None, bbox=None, sensor=None):
     return df
 
 
+# Harmonization results are cached per dataset + parameters: one dashboard load asks for the
+# same run several times (stats, statuses, events, trends), and live data can be thousands of rows.
+_RUN_CACHE, _RUN_LOCK = {}, threading.Lock()
+
+
 def run(radius_km, window_min, conf, start, end, bbox):
-    d = filt(load_raw(), start, end, bbox)
-    if d.empty:
-        raise HTTPException(404, "No observations in selected region/date range")
-    return harmonize(d, Params(radius_km=radius_km, window_min=window_min, conf_threshold=conf))
+    raw = load_raw()
+    key = (id(raw), radius_km, window_min, conf, start, end, bbox)
+    with _RUN_LOCK:
+        if key not in _RUN_CACHE:
+            d = filt(raw, start, end, bbox)
+            if d.empty:
+                raise HTTPException(404, "No observations in selected region/date range")
+            if len(_RUN_CACHE) >= 32 or any(k[0] != id(raw) for k in _RUN_CACHE):
+                _RUN_CACHE.clear()
+            _RUN_CACHE[key] = harmonize(d, Params(radius_km=radius_km, window_min=window_min, conf_threshold=conf))
+        return _RUN_CACHE[key]
 
 
 def _js(df):
@@ -74,20 +86,27 @@ H = dict(radius_km=Query(DEFAULT_RADIUS_KM, gt=0, le=10), window_min=Query(DEFAU
 
 @app.get("/")
 def root():
-    return {"name": "FireHarmonize API", "mode": MODE, "label": LABEL,
-            "docs": "/docs", "health": "/api/health"}
+    return {"name": "FireHarmonize API", **SOURCE.peek_meta(), "docs": "/docs", "health": "/api/health",
+            "dataset": "/api/dataset"}
 
 
 @app.get("/api/health")
 def health():
-    return {"mode": MODE, "label": LABEL}
+    # Never contacts NASA FIRMS: Render calls this every few seconds.
+    return SOURCE.peek_meta()
+
+
+@app.get("/api/dataset")
+def dataset():
+    """What data is being served: live FIRMS (region, dates, sources, fetch time) or demo."""
+    return meta()
 
 
 @app.get("/api/fires")
 def fires(start: str = None, end: str = None, bbox: str = None, sensor: str = None,
           page: int = Query(1, ge=1), size: int = Query(100, ge=1, le=1000)):
     d = filt(load_raw(), start, end, bbox, sensor)
-    return {"total": len(d), "page": page, "label": LABEL,
+    return {"total": len(d), "page": page, "label": meta()["label"],
             "items": _js(_ts(d.iloc[(page - 1) * size: page * size]))}
 
 
@@ -95,7 +114,9 @@ def fires(start: str = None, end: str = None, bbox: str = None, sensor: str = No
 def run_h(radius_km: float = H["radius_km"], window_min: float = H["window_min"], conf: float = H["conf"],
           start: str = None, end: str = None, bbox: str = None):
     o, ev = run(radius_km, window_min, conf, start, end, bbox)
-    return {"statistics": statistics(o), "events": len(ev), "label": LABEL,
+    m = meta()
+    return {"statistics": statistics(o), "events": len(ev), "label": m["label"], "mode": m["mode"],
+            "is_demo": m["mode"] != "live",
             "params": {"radius_km": radius_km, "window_min": window_min, "conf_threshold": conf,
                        "note": "Prototype parameters, not NASA constants"}}
 
