@@ -33,23 +33,29 @@ The platform aims to improve the interpretation of satellite-based fire observat
 
 ## 📸 Screenshots
 
-**Overview:** sensor counts, matched pairs, observation timeline and harmonization summary.
+All screenshots show **live NASA FIRMS data** for Punjab & Haryana, 1–3 November 2026 (MODIS_NRT + VIIRS_NOAA21_NRT), captured from the deployed dashboard.
 
-![FireHarmonize overview dashboard](docs/screenshots/overview.png)
+**Overview:** 989 MODIS and 1,264 VIIRS detections, 69 matched pairs, and a note explaining the low match rate with the satellites' measured overpass times (MODIS Aqua ~2 h 38 min after VIIRS NOAA-21).
 
-**Fire Map:** MODIS, VIIRS and harmonized events on Esri satellite imagery, with the Observation Inspector.
+![FireHarmonize overview dashboard with live Punjab & Haryana data](docs/screenshots/overview.png)
 
-![Fire map with a harmonized event selected](docs/screenshots/fire-map.png)
+**Fire Map:** MODIS, VIIRS and harmonized events on Esri satellite imagery, with a harmonized event open in the Observation Inspector.
 
-**Harmonization:** adjustable spatial radius and time window, with the resulting harmonized events and match scores.
+![Fire map of Punjab and Haryana with a harmonized event selected](docs/screenshots/fire-map.png)
+
+**Harmonization:** live-mode matching (2 km, 180 min), adjustable with the sliders, and the resulting events ranked by match score.
 
 ![Harmonization engine controls and output](docs/screenshots/harmonization.png)
 
-**Data Explorer:** every observation and event with its harmonization status.
+**Historical Trends:** daily MODIS, VIIRS and harmonized event counts.
+
+![Daily MODIS, VIIRS and harmonized counts](docs/screenshots/trends.png)
+
+**Data Explorer:** all 4,304 observations and events with their harmonization status (the first 500 are shown; search or filter to narrow).
 
 ![Data Explorer with colour-coded statuses](docs/screenshots/data-explorer.png)
 
-**Mobile:** the full dashboard works on phones, with a swipeable tab bar.
+**Mobile:** the full dashboard works on phones, with the region picker in the top banner and a swipeable tab bar.
 
 <img src="docs/screenshots/mobile.png" alt="FireHarmonize on a phone" width="300">
 
