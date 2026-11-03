@@ -20,7 +20,7 @@ The platform aims to improve the interpretation of satellite-based fire observat
 | Interactive API docs | https://fireharmonize.onrender.com/docs |
 | API health check | https://fireharmonize.onrender.com/api/health |
 
-- **Data:** the live site shows **real NASA FIRMS detections** (MODIS_NRT + VIIRS_SNPP_NRT) for the **last 3 days**, refreshed at most once an hour, for two regions you can switch between in the top banner:
+- **Data:** the live site shows **real NASA FIRMS detections** (MODIS_NRT + VIIRS_NOAA21_NRT) for the **last 3 days**, refreshed at most once an hour, for two regions you can switch between in the top banner:
   - **Punjab & Haryana** (73.5–77.5°E, 28.5–32.5°N) — the default; crop-residue burning makes it one of India's most active fire regions.
   - **South India** (74–84.8°E, 8–20°N) — if it has no detections in the last 3 days (e.g. during the monsoon), the app looks back 10 days.
 
@@ -76,7 +76,7 @@ FireHarmonize is designed around two major satellite observation systems:
 | MODIS | Terra and Aqua | Active-fire and thermal-anomaly observations |
 | VIIRS | Suomi-NPP, NOAA-20 and NOAA-21 | Active-fire and thermal-anomaly observations |
 
-**Current data status:** live mode fetches near-real-time MODIS and VIIRS (S-NPP) detections from the NASA FIRMS area API. Demo mode uses a synthetic dataset generated in memory by `backend/app/demo.py` (186 observations: 90 MODIS, 96 VIIRS over South India).
+**Current data status:** live mode fetches near-real-time MODIS (Aqua/Terra) and VIIRS (NOAA-21) detections from the NASA FIRMS area API. Demo mode uses a synthetic dataset generated in memory by `backend/app/demo.py` (186 observations: 90 MODIS, 96 VIIRS over South India).
 
 ---
 
@@ -290,8 +290,8 @@ python -m pytest -q
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/health` | Backend health and operating mode (never contacts FIRMS) |
-| GET | `/api/regions` | Regions available (live: Punjab & Haryana, South India; demo: one synthetic region) |
-| GET | `/api/dataset` | Which data is being served for a region: live / demo / demo-fallback, dates, sources, fetch time |
+| GET | `/api/regions` | Regions available (live: Punjab & Haryana, South India; demo: one synthetic region) and default matching parameters |
+| GET | `/api/dataset` | Which data is being served for a region: live / demo / demo-fallback, dates, sources, fetch time, satellite overpass times |
 | GET | `/api/fires` | Retrieve fire observations |
 | GET | `/api/fires/harmonized` | Retrieve harmonized events |
 | GET | `/api/harmonization/run` | Execute prototype harmonization |
@@ -319,7 +319,7 @@ Refer to the FastAPI Swagger documentation for supported parameters and response
 
 `https://firms.modaps.eosdis.nasa.gov/api/area/csv/<MAP_KEY>/<SOURCE>/<west,south,east,north>/<days>`
 
-for `MODIS_NRT` and `VIIRS_SNPP_NRT`, separately for each region (Punjab & Haryana, South India). `backend/app/dataset.py` then, per region:
+for `MODIS_NRT` and `VIIRS_NOAA21_NRT`, separately for each region (Punjab & Haryana, South India). `backend/app/dataset.py` then, per region:
 
 - caches the result for `LIVE_CACHE_MINUTES` (60), so visitors do not use up the FIRMS quota;
 - if the region has no detections in `LIVE_DAYS` (3), looks back 10 days (the API maximum);
@@ -329,6 +329,14 @@ for `MODIS_NRT` and `VIIRS_SNPP_NRT`, separately for each region (Punjab & Harya
 Get a free MAP_KEY at https://firms.modaps.eosdis.nasa.gov/api/map_key/.
 
 **Security:** the FIRMS key is used only by the backend (Render environment variable `FIRMS_MAP_KEY`). It never appears in frontend code, API responses, logs or error messages, and must never be committed to GitHub.
+
+### Why live matching uses wider settings
+
+The MODIS and VIIRS overpass times are worked out from the detections themselves and shown on the dashboard. Over India, **MODIS Aqua now passes roughly 2–3 hours after VIIRS**: Aqua (launched 2002) has stopped orbit maintenance and its overpass time keeps drifting later. On 1–3 Nov 2026 over Punjab & Haryana, Aqua passed at ~10:36 UTC and VIIRS S-NPP at ~08:34 UTC. With the demo-mode defaults (30 min, 1 km) that gives **0** matched pairs.
+
+Live mode therefore defaults to a **180-minute window and a 2 km radius**. The radius is 2 km because MODIS pixels grow from 1 km at nadir to about 2 × 4.8 km at the scan edge. Matches are **same-afternoon fire events**, not simultaneous detections. The match rate stays low (about 2% on that data) because crop-residue fires are short-lived: many fields seen burning at 1 pm have burnt out by 4 pm, and new ones have started. Both values can be changed with `SPATIAL_MATCH_RADIUS_KM` / `TEMPORAL_MATCH_WINDOW_MINUTES`, or per request from the Harmonization tab.
+
+VIIRS data comes from **NOAA-21** by default, the newest VIIRS satellite. In November 2026 its near-real-time feed was more complete than Suomi-NPP's, which had no data yet for the current day.
 
 ### Demo Mode (`DATA_MODE=demo`, default)
 
@@ -348,9 +356,9 @@ Synthetic fire observations generated in `backend/app/demo.py` (South India, Feb
 | `LIVE_DAYS` | `3` | Days of FIRMS data to fetch (1–10); quiet regions fall back to 10 |
 | `LIVE_CACHE_MINUTES` | `60` | How long a FIRMS download is reused |
 | `LIVE_RETRY_MINUTES` | `5` | Wait before retrying after a failed fetch |
-| `LIVE_MODIS_SOURCE` / `LIVE_VIIRS_SOURCE` | `MODIS_NRT` / `VIIRS_SNPP_NRT` | FIRMS source names |
-| `SPATIAL_MATCH_RADIUS_KM` | `1.0` | Default spatial matching radius |
-| `TEMPORAL_MATCH_WINDOW_MINUTES` | `30` | Default temporal matching window |
+| `LIVE_MODIS_SOURCE` / `LIVE_VIIRS_SOURCE` | `MODIS_NRT` / `VIIRS_NOAA21_NRT` | FIRMS source names |
+| `SPATIAL_MATCH_RADIUS_KM` | `1.0` demo / `2.0` live | Default spatial matching radius |
+| `TEMPORAL_MATCH_WINDOW_MINUTES` | `30` demo / `180` live | Default temporal matching window (up to 240) |
 | `CONFIDENCE_THRESHOLD` | `30` | Default minimum confidence for matching |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated frontend origins allowed to call the API |
 

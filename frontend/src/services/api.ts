@@ -292,6 +292,17 @@ export interface RegionList {
   mode: 'live' | 'demo';
   default: string;
   regions: { id: string; name: string; bbox: [number, number, number, number] }[];
+  /** Default matching parameters (live data uses wider ones than the demo). */
+  defaults?: { radius_km: number; window_min: number };
+}
+
+/** Typical daytime overpass time of one satellite, derived from its detections. */
+export interface Overpass {
+  sensor: 'MODIS' | 'VIIRS';
+  satellite: string;
+  utc: string;
+  minutes_utc: number;
+  count: number;
 }
 
 /** Which data the backend is serving for the current region (GET /api/dataset). */
@@ -309,6 +320,7 @@ export interface DatasetInfo {
   stale: boolean;
   reason: string | null;
   counts: Record<string, number>;
+  overpasses?: Overpass[];
 }
 
 export const api = {

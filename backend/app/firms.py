@@ -14,7 +14,9 @@ import requests
 from .normalize import normalize
 
 DEFAULT_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
-DEFAULT_SOURCES = {"MODIS": "MODIS_NRT", "VIIRS": "VIIRS_SNPP_NRT"}   # *_SP sources hold archived data
+# NOAA-21 is the newest VIIRS satellite and the most complete near-real-time feed
+# (Suomi-NPP's NRT data was running a day late in Nov 2026). *_SP sources hold archived data.
+DEFAULT_SOURCES = {"MODIS": "MODIS_NRT", "VIIRS": "VIIRS_NOAA21_NRT"}
 
 
 class FirmsError(RuntimeError):

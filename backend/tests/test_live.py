@@ -49,7 +49,7 @@ def test_fetch_builds_most_recent_url_and_parses(monkeypatch):
     monkeypatch.setattr(firms.requests, "get", fake_get)
     df = firms.fetch("VIIRS", (73.5, 28.5, 77.5, 32.5), 3)
     assert seen["url"] == ("https://firms.modaps.eosdis.nasa.gov/api/area/csv/SECRETKEY123/"
-                           "VIIRS_SNPP_NRT/73.5,28.5,77.5,32.5/3")
+                           "VIIRS_NOAA21_NRT/73.5,28.5,77.5,32.5/3")
     assert len(df) == 2 and set(df.sensor) == {"VIIRS"}
     assert list(df.confidence) == [60, 90]                     # n -> 60, h -> 90
 
@@ -94,7 +94,7 @@ def test_live_data_cached_then_refreshed():
     src = DataSource(mode="live", fetch=lambda s, b, d: calls.append(s) or f[s], clock=clock, cache_minutes=60)
     df, m = src.get()
     assert m["mode"] == "live" and m["region"] == "Punjab & Haryana" and m["counts"] == {"MODIS": 3, "VIIRS": 2}
-    assert m["sources"] == ["MODIS_NRT", "VIIRS_SNPP_NRT"] and m["first_date"] == "2026-11-02"
+    assert m["sources"] == ["MODIS_NRT", "VIIRS_NOAA21_NRT"] and m["first_date"] == "2026-11-02"
     assert not df.is_demo.any()
     clock.t += 30 * 60
     src.get()
@@ -213,7 +213,19 @@ def test_api_demo_mode_has_one_region(monkeypatch):
     main._RUN_CACHE.clear()
     c = TestClient(main.app)
     lst = c.get("/api/regions").json()
-    assert lst == {"mode": "demo", "default": "demo",
-                   "regions": [{"id": "demo", "name": "South India (synthetic)", "bbox": [77.0, 10.0, 80.5, 14.0]}]}
+    assert {k: lst[k] for k in ("mode", "default", "regions")} == {
+        "mode": "demo", "default": "demo",
+        "regions": [{"id": "demo", "name": "South India (synthetic)", "bbox": [77.0, 10.0, 80.5, 14.0]}]}
+    assert lst["defaults"] == {"radius_km": main.DEFAULT_RADIUS_KM, "window_min": main.DEFAULT_WINDOW_MIN}
     assert c.get("/api/dataset").json()["mode"] == "demo"
     main._RUN_CACHE.clear()
+
+
+def test_overpasses_from_detections():
+    from app.dataset import overpasses
+    f = frames()
+    df = pd.concat([f["MODIS"], f["VIIRS"]], ignore_index=True)
+    ov = overpasses(df)
+    assert {o["sensor"] for o in ov} <= {"MODIS", "VIIRS"}
+    for o in ov:
+        assert len(o["utc"]) == 5 and o["count"] >= 1

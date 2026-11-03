@@ -47,6 +47,30 @@ def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+SATELLITE_NAMES = {"A": "Aqua", "T": "Terra", "N": "Suomi-NPP", "N20": "NOAA-20", "N21": "NOAA-21",
+                   "1": "NOAA-20", "2": "NOAA-21"}
+
+
+def overpasses(df: pd.DataFrame):
+    """Typical daytime overpass time (UTC) per satellite, from the detections themselves.
+
+    Daytime = 06:00-18:00 local solar time (UTC + longitude/15 h). Explains matching results:
+    MODIS Aqua's orbit has drifted, so it now passes hours after VIIRS.
+    """
+    if df.empty:
+        return []
+    t = df.acq_datetime
+    solar_h = (t.dt.hour + t.dt.minute / 60 + df.longitude / 15) % 24
+    day = df[(solar_h >= 6) & (solar_h <= 18)]
+    out = []
+    for (sensor, sat), g in day.groupby(["sensor", "satellite"]):
+        mins = g.acq_datetime.dt.hour * 60 + g.acq_datetime.dt.minute
+        med = int(round(mins.median()))
+        out.append({"sensor": sensor, "satellite": SATELLITE_NAMES.get(str(sat), str(sat)),
+                    "utc": f"{med // 60:02d}:{med % 60:02d}", "minutes_utc": med, "count": int(len(g))})
+    return sorted(out, key=lambda x: (x["sensor"], -x["count"]))
+
+
 def _date_range(df: pd.DataFrame):
     if df.empty:
         return None, None
@@ -83,7 +107,7 @@ class DataSource:
         meta = {"mode": mode, "label": label, "region_id": self.region_id, "region": DEMO_REGION, "bbox": DEMO_BBOX,
                 "sources": ["synthetic demo"], "days": None, "first_date": first, "last_date": last,
                 "fetched_at": None, "stale": False, "reason": reason,
-                "counts": df.sensor.value_counts().to_dict()}
+                "counts": df.sensor.value_counts().to_dict(), "overpasses": overpasses(df)}
         return df, meta
 
     # ------------------------------------------------------------------ live
@@ -106,7 +130,7 @@ class DataSource:
         meta = {"mode": "live", "region_id": self.region_id, "region": self.region, "bbox": list(self.bbox),
                 "sources": [firms.source_for("MODIS"), firms.source_for("VIIRS")], "days": days,
                 "first_date": first, "last_date": last, "fetched_at": _iso(now), "stale": False,
-                "reason": None, "counts": df.sensor.value_counts().to_dict()}
+                "reason": None, "counts": df.sensor.value_counts().to_dict(), "overpasses": overpasses(df)}
         meta["label"] = (f"LIVE NASA FIRMS data - {self.region}, last {days} day(s) "
                          f"({', '.join(meta['sources'])}), fetched {meta['fetched_at']}")
         return df, meta

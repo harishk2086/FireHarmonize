@@ -17,8 +17,11 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET"], allow_headers=["*"])
 
 # Default harmonization parameters (prototype values, not NASA constants); overridable per request.
-DEFAULT_RADIUS_KM = float(os.getenv("SPATIAL_MATCH_RADIUS_KM", "1.0"))
-DEFAULT_WINDOW_MIN = float(os.getenv("TEMPORAL_MATCH_WINDOW_MINUTES", "30"))
+# Live data needs wider defaults than the demo: MODIS Aqua's orbit has drifted, so over India it
+# now passes ~2.5-3 h after VIIRS, and MODIS pixels grow to ~2 x 4.8 km at the scan edge.
+_LIVE = REGIONS.mode == "live"
+DEFAULT_RADIUS_KM = float(os.getenv("SPATIAL_MATCH_RADIUS_KM", "2.0" if _LIVE else "1.0"))
+DEFAULT_WINDOW_MIN = float(os.getenv("TEMPORAL_MATCH_WINDOW_MINUTES", "180" if _LIVE else "30"))
 DEFAULT_CONF = float(os.getenv("CONFIDENCE_THRESHOLD", "30"))
 
 
@@ -108,8 +111,8 @@ def health():
 
 @app.get("/api/regions")
 def regions():
-    """Regions the dashboard can switch between (never contacts FIRMS)."""
-    return REGIONS.listing()
+    """Regions the dashboard can switch between, and default matching parameters (never contacts FIRMS)."""
+    return {**REGIONS.listing(), "defaults": {"radius_km": DEFAULT_RADIUS_KM, "window_min": DEFAULT_WINDOW_MIN}}
 
 
 @app.get("/api/dataset")

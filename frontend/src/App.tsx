@@ -192,6 +192,10 @@ const [selectedHotspot, setSelectedHotspot] =
       if (!regionList) {
         const list = await api.getRegions();
         setRegionList(list);
+        if (list.defaults) {
+          setSpatialRadius(list.defaults.radius_km);
+          setTemporalWindow(list.defaults.window_min);
+        }
         if (!regionId) {
           setRegion(list.default);
           setRegionId(list.default);
@@ -259,6 +263,29 @@ const [selectedHotspot, setSelectedHotspot] =
           </option>
         ))}
       </select>
+    ) : null;
+
+  // Why matching finds few pairs on live data: the satellites pass at different times.
+  const mainPass = (sensor: 'MODIS' | 'VIIRS') =>
+    dataset?.overpasses?.find((o) => o.sensor === sensor);
+  const modisPass = mainPass('MODIS');
+  const viirsPass = mainPass('VIIRS');
+  const passGapMin =
+    modisPass && viirsPass ? Math.abs(modisPass.minutes_utc - viirsPass.minutes_utc) : null;
+
+  const overpassNote =
+    dataset?.mode === 'live' && modisPass && viirsPass && passGapMin !== null ? (
+      <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 leading-relaxed flex items-start gap-3">
+        <Satellite className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold text-slate-100">Why the matched-pair count is low: </span>
+          {`over ${dataset.region}, MODIS (${modisPass.satellite}) passes at about ${modisPass.utc} UTC and VIIRS (${viirsPass.satellite}) at about ${viirsPass.utc} UTC, `}
+          <span className="text-amber-300 font-semibold">
+            {`${Math.floor(passGapMin / 60)} h ${passGapMin % 60} min apart`}
+          </span>
+          {`. Aqua's orbit has drifted since its 2002 launch, so the two sensors no longer see fires at the same moment, and short-lived crop-residue fires often start or burn out in between. Matching therefore uses a ${temporalWindow}-minute window and a ${spatialRadius} km radius (MODIS pixels grow to about 2 × 4.8 km at the scan edge), and pairs are same-afternoon fire events, not simultaneous detections.`}
+        </div>
+      </div>
     ) : null;
 
   // Switch region: every request is re-sent with the new ?region=
@@ -693,6 +720,8 @@ const [selectedHotspot, setSelectedHotspot] =
                 </div>
               ))}
             </div>
+
+            {overpassNote}
 
             {/* Why Harmonization Matters Section */}
             <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 shadow-xl relative overflow-hidden">
@@ -1194,6 +1223,8 @@ const [selectedHotspot, setSelectedHotspot] =
                   </p>
                 </div>
 
+                {overpassNote && <div className="[&>div]:p-3 [&>div]:text-[11px]">{overpassNote}</div>}
+
                 {/* Spatial Radius Slider */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-mono">
@@ -1246,7 +1277,7 @@ const [selectedHotspot, setSelectedHotspot] =
                   <input
                     type="range"
                     min="10"
-                    max="120"
+                    max="240"
                     step="5"
                     value={temporalWindow}
                     onChange={e =>
@@ -1263,7 +1294,7 @@ const [selectedHotspot, setSelectedHotspot] =
                     </span>
 
                     <span>
-                      120 mins
+                      240 mins
                     </span>
                   </div>
                 </div>
