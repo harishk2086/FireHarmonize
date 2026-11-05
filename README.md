@@ -417,7 +417,7 @@ FireHarmonize is an experimental prototype. Its current limitations include:
 ## 👨‍💻 Project Information
 
 **Project:** FireHarmonize  
-**Author:** Harish K  B.E Electronics and Communication Engineering
+**Author:** Harish K  B.E Electronics and Communication Engineering/
 **Event:** NASA Space Apps Challenge 2026  
 **Challenge:** Harmonization of MODIS and VIIRS Hot Spots  
 
