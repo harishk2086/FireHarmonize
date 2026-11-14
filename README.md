@@ -417,6 +417,11 @@ FireHarmonize is an experimental prototype. Its current limitations include:
 - Improved data validation and uncertainty assessment.
 
 ---
+## 🤖 Use of AI Tools
+
+The team designed FireHarmonize, chose the regions and matching approach, obtained NASA FIRMS access, deployed the system and verified every result on live NASA data. AI assistants (Claude by Anthropic and ChatGPT by OpenAI) were used as tools to speed up coding, debugging, documentation and presentation design. All fire data comes directly from NASA FIRMS and is not AI-generated.
+
+---
 
 ## 👨‍💻 Project Information
 
