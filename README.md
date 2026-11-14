@@ -33,17 +33,17 @@ The platform aims to improve the interpretation of satellite-based fire observat
 
 ## 📸 Screenshots
 
-All screenshots show **live NASA FIRMS data** for Punjab & Haryana, 1–3 November 2026 (MODIS_NRT + VIIRS_NOAA21_NRT), captured from the deployed dashboard.
+The desktop screenshots show **live NASA FIRMS data** for Punjab & Haryana, 12–13 November 2026 (MODIS_NRT + VIIRS_NOAA21_NRT), captured from the deployed dashboard on 14 November 2026.
 
-**Overview:** 989 MODIS and 1,264 VIIRS detections, 69 matched pairs, and a note explaining the low match rate with the satellites' measured overpass times (MODIS Aqua ~2 h 38 min after VIIRS NOAA-21).
+**Overview:** 323 MODIS and 399 VIIRS detections, 11 matched pairs, and a note explaining the low match rate with the satellites' measured overpass times (MODIS Aqua ~10:21 UTC, VIIRS NOAA-21 ~08:09 UTC, 2 h 12 min apart).
 
 ![FireHarmonize overview dashboard with live Punjab & Haryana data](docs/screenshots/overview.png)
 
-**Fire Map:** MODIS, VIIRS and harmonized events on Esri satellite imagery, with a harmonized event open in the Observation Inspector.
+**Fire Map:** MODIS, VIIRS and harmonized events on Esri satellite imagery, with an event open in the Observation Inspector.
 
-![Fire map of Punjab and Haryana with a harmonized event selected](docs/screenshots/fire-map.png)
+![Fire map of Punjab and Haryana with an event selected](docs/screenshots/fire-map.png)
 
-**Harmonization:** live-mode matching (2 km, 180 min), adjustable with the sliders, and the resulting events ranked by match score.
+**Harmonization:** live-mode matching (2 km, 180 min), adjustable with the sliders. 722 raw detections (33 flagged as low-confidence or repeats) became 678 harmonized events, ranked by match score.
 
 ![Harmonization engine controls and output](docs/screenshots/harmonization.png)
 
@@ -51,11 +51,15 @@ All screenshots show **live NASA FIRMS data** for Punjab & Haryana, 1–3 Novemb
 
 ![Daily MODIS, VIIRS and harmonized counts](docs/screenshots/trends.png)
 
-**Data Explorer:** all 4,304 observations and events with their harmonization status (the first 500 are shown; search or filter to narrow).
+**Data Explorer:** all 1,400 records (722 detections and 678 harmonized events) with their harmonization status; the first 500 are shown, and search or filter narrows the list.
 
 ![Data Explorer with colour-coded statuses](docs/screenshots/data-explorer.png)
 
-**Mobile:** the full dashboard works on phones, with the region picker in the top banner and a swipeable tab bar.
+**Methodology:** the sensor differences, the match-score formula and the scientific disclaimer, inside the dashboard.
+
+![Methodology tab](docs/screenshots/methodology.png)
+
+**Mobile:** the full dashboard works on phones, with the region picker in the top banner and a swipeable tab bar (captured 3 November 2026).
 
 <img src="docs/screenshots/mobile.png" alt="FireHarmonize on a phone" width="300">
 
