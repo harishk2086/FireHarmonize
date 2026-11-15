@@ -426,7 +426,8 @@ The team designed FireHarmonize, chose the regions and matching approach, obtain
 ## 👨‍💻 Project Information
 
 **Project:** FireHarmonize<br>
-**Author:** Harish K<br>
+**Team Name:** Cosmic Chaos Crew<br>
+**Team Leader:** Harish K<br>
 B.E Electronics and Communication Engineering<br>
 **Event:** NASA Space Apps Challenge 2026<br>
 **Challenge:** Harmonization of MODIS and VIIRS Hot Spots
